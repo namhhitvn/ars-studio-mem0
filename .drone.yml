@@ -1,0 +1,76 @@
+kind: pipeline
+type: docker
+name: build-and-deploy
+
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+  - name: build-and-publish-dashboard
+    image: plugins/docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    settings:
+      registry:
+        from_secret: ARS_DOCKER_REGISTRY_URL
+      username:
+        from_secret: ARS_DOCKER_REGISTRY_USER
+      password:
+        from_secret: ARS_DOCKER_REGISTRY_PASS
+      cache_from:
+        from_secret: ARS_PROJECT_REPO_DASHBOARD
+      repo:
+        from_secret: ARS_PROJECT_REPO_DASHBOARD
+      context: server/dashboard
+      dockerfile: server/dashboard/Dockerfile
+      pull_image: true
+      insecure: true
+      tags: latest
+    depends_on:
+      - clone
+
+  - name: build-and-publish-server
+    image: plugins/docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    settings:
+      registry:
+        from_secret: ARS_DOCKER_REGISTRY_URL
+      username:
+        from_secret: ARS_DOCKER_REGISTRY_USER
+      password:
+        from_secret: ARS_DOCKER_REGISTRY_PASS
+      cache_from:
+        from_secret: ARS_PROJECT_REPO_SERVER
+      repo:
+        from_secret: ARS_PROJECT_REPO_SERVER
+      dockerfile: server/dev.Dockerfile
+      pull_image: true
+      insecure: true
+      tags: latest
+    depends_on:
+      - clone
+
+  # - name: deploy-core-mac
+  #   image: appleboy/drone-ssh
+  #   environment:
+  #     WORKDIR:
+  #       from_secret: ARS_CORE_MAC_WORKDIR
+  #   settings:
+  #     host:
+  #       from_secret: ARS_CORE_MAC_HOST
+  #     username:
+  #       from_secret: ARS_CORE_MAC_USER
+  #     key:
+  #       from_secret: ARS_CORE_MAC_SSH_KEY_PLAINTEXT
+  #     envs:
+  #       - WORKDIR
+  #     script:
+  #       - $WORKDIR/infra/core-mac/drone-deploy.sh
+
+trigger:
+  event:
+    - push
+  branch:
+    - main
